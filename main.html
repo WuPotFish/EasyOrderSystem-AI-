@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>專業叫貨系統-多單位版</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f1f5f9; --card: #ffffff; --danger: #ef4444; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); margin: 0; padding: 10px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 600px; }
+        .card { background: var(--card); padding: 25px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 15px; }
+        .page { display: none; }
+        .page.active { display: block; }
+        h2 { margin: 0 0 20px 0; text-align: center; color: #334155; }
+        .menu-grid { display: grid; gap: 15px; }
+        .btn-menu { padding: 25px; border-radius: 15px; border: 1px solid #e2e8f0; font-size: 1.1rem; font-weight: bold; cursor: pointer; background: var(--card); display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-menu.primary { background: var(--primary); color: white; border: none; }
+        .btn-back { background: #64748b; color: white; padding: 8px 15px; border-radius: 8px; border: none; margin-bottom: 20px; font-weight: bold; cursor: pointer; }
+        .btn-action { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #f1f5f9; }
+        .cat-group { margin-top: 15px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+        .cat-title { background: #f8fafc; padding: 10px 15px; font-weight: bold; border-bottom: 1px solid #e2e8f0; }
+        .item-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 15px; border-bottom: 1px solid #f8fafc; }
+        input[type="number"] { width: 65px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; text-align: center; }
+        select { padding: 8px; border-radius: 5px; border: 1px solid #ddd; background: #fff; }
+        .unit-text { color: #64748b; font-weight: bold; min-width: 40px; text-align: center; }
+        .output-box { background: #1e293b; color: #38bdf8; padding: 15px; border-radius: 12px; margin-top: 20px; white-space: pre-wrap; font-family: monospace; }
+        .help-text { font-size: 12px; color: #64748b; margin-top: -8px; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="page-home" class="page active">
+        <div class="card">
+            <h2>📦 叫貨系統主選單</h2>
+            <div class="menu-grid">
+                <button class="btn-menu primary" onclick="showPage('page-order')">🛒 選擇本期叫貨</button>
+                <button class="btn-menu" onclick="showPage('page-add')">➕ 新增貨品品項</button>
+                <button class="btn-menu" onclick="showPage('page-delete')">❌ 刪除/管理貨品</button>
+                <button class="btn-menu" style="font-size: 0.9rem; color: #64748b;" onclick="showPage('page-tags')">🏷️ 管理標籤</button>
+            </div>
+            <div style="margin-top: 25px; display: flex; justify-content: center; gap: 10px;">
+                <button onclick="exportData()" class="btn-util">備份</button>
+                <button onclick="importData()" class="btn-util">匯入</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="page-add" class="page">
+        <button class="btn-back" onclick="showPage('page-home')">← 返回主頁</button>
+        <div class="card">
+            <h2>➕ 新增品項</h2>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <input type="text" id="add-name" placeholder="貨品名稱 (如: 豬肉)">
+                <input type="text" id="add-units" placeholder="單位 (多個請用逗號隔開, 如: 斤,件,顆)">
+                <div class="help-text">※ 只有一個單位會鎖定，多個單位可供叫貨時選擇。</div>
+                <select id="add-tag-select"></select>
+                <button class="btn-action" style="background: var(--primary); color: white;" onclick="handleAddProduct()">確認新增</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="page-delete" class="page">
+        <button class="btn-back" onclick="showPage('page-home')">← 返回主頁</button>
+        <div class="card">
+            <h2>❌ 刪除與管理</h2>
+            <div id="manage-list"></div>
+        </div>
+    </div>
+
+    <div id="page-order" class="page">
+        <button class="btn-back" onclick="showPage('page-home')">← 返回主頁</button>
+        <div class="card">
+            <h2>🛒 選擇叫貨量</h2>
+            <div id="order-container"></div>
+            <button class="btn-action" style="background: #10b981; color: white; margin-top: 20px;" onclick="generateOutput()">📋 產生並複製對齊清單</button>
+            <div id="outputDisplay" class="output-box">尚未產生...</div>
+        </div>
+    </div>
+
+    <div id="page-tags" class="page">
+        <button class="btn-back" onclick="showPage('page-home')">← 返回主頁</button>
+        <div class="card">
+            <h2>🏷️ 管理標籤</h2>
+            <div style="display: flex; gap: 5px; margin-bottom: 20px;">
+                <input type="text" id="new-tag-name" style="flex:1" placeholder="新標籤名稱">
+                <button onclick="handleAddTag()" style="padding: 10px; background: #64748b; color: white; border-radius: 8px; border: none;">新增</button>
+            </div>
+            <div id="tag-manage-list"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 預設資料
+    const defaultProducts = [
+    // 非蔬菜 常見
+    { name: "雞蛋", units: ["盤"], tag: "非蔬菜 常見" },
+    { name: "蒜泥", units: ["斤"], tag: "非蔬菜 常見" },
+    { name: "蒜碎", units: ["斤"], tag: "非蔬菜 常見" },
+    { name: "小辣椒", units: ["斤"], tag: "非蔬菜 常見" },
+    { name: "大辣椒", units: ["斤"], tag: "非蔬菜 常見" },
+    { name: "青蔥", units: ["捆"], tag: "非蔬菜 常見" },
+    { name: "香菇（小）", units: ["支"], tag: "非蔬菜 常見" },
+    { name: "金針菇", units: ["支"], tag: "非蔬菜 常見" },
+    { name: "杏鮑菇", units: ["支"], tag: "非蔬菜 常見" },
+    { name: "白精靈", units: ["K"], tag: "非蔬菜 常見" },
+    { name: "袖珍菇", units: ["支"], tag: "非蔬菜 常見" },
+    { name: "鴻禧菇", units: ["包"], tag: "非蔬菜 常見" },
+    { name: "木耳", units: ["斤"], tag: "非蔬菜 常見" },
+    { name: "川耳", units: ["包"], tag: "非蔬菜 常見" },
+    { name: "海帶結", units: ["斤"], tag: "非蔬菜 常見" },
+    { name: "仙草", units: ["盒"], tag: "非蔬菜 常見" },
+    { name: "愛玉", units: ["盒"], tag: "非蔬菜 常見" },
+    { name: "杏仁", units: ["盒"], tag: "非蔬菜 常見" },
+
+    // 非蔬菜 不常見
+    { name: "蒜粒", units: ["斤"], tag: "非蔬菜 不常見" },
+    { name: "薑絲", units: ["斤"], tag: "非蔬菜 不常見" },
+    { name: "薑", units: ["斤"], tag: "非蔬菜 不常見" },
+
+    // 蔬菜 常見
+    { name: "高麗菜", units: ["件"], tag: "蔬菜 常見" },
+    { name: "大陸A妹", units: ["件"], tag: "蔬菜 常見" },
+    { name: "青江菜", units: ["件", "斤"], tag: "蔬菜 常見" },
+    { name: "奶油白菜", units: ["件", "斤"], tag: "蔬菜 常見" },
+    { name: "筒凹", units: ["件", "捆"], tag: "蔬菜 常見" },
+    { name: "山筒凹", units: ["件", "捆"], tag: "蔬菜 常見" },
+    { name: "青花椰", units: ["顆"], tag: "蔬菜 常見" },
+    { name: "白花椰", units: ["顆"], tag: "蔬菜 常見" },
+    { name: "水蓮", units: ["包"], tag: "蔬菜 常見" },
+    { name: "娃娃菜", units: ["包"], tag: "蔬菜 常見" },
+    { name: "玉米", units: ["斤"], tag: "蔬菜 常見" },
+    { name: "玉米筍", units: ["盒"], tag: "蔬菜 常見" },
+    { name: "白洋蔥", units: ["件"], tag: "蔬菜 常見" },
+    { name: "紫洋蔥", units: ["顆", "斤"], tag: "蔬菜 常見" },
+    { name: "白蘿蔔", units: ["條", "斤"], tag: "蔬菜 常見" },
+    { name: "南瓜", units: ["顆", "斤"], tag: "蔬菜 常見" },
+    { name: "絲瓜", units: ["條", "斤"], tag: "蔬菜 常見" },
+    { name: "大黃瓜", units: ["條", "斤"], tag: "蔬菜 常見" },
+    { name: "番茄", units: ["條", "斤"], tag: "蔬菜 常見" },
+    { name: "鳥蛋", units: ["斤"], tag: "蔬菜 常見" },
+
+    // 蔬菜 不常見
+    { name: "山東大白菜", units: ["件"], tag: "蔬菜 不常見" },
+    { name: "柯白菜", units: ["件", "斤"], tag: "蔬菜 不常見" },
+    { name: "小白菜", units: ["件", "斤"], tag: "蔬菜 不常見" },
+    { name: "地瓜葉", units: ["捆", "斤"], tag: "蔬菜 不常見" },
+    { name: "龍鬚菜", units: ["捆"], tag: "蔬菜 不常見" },
+    { name: "菠菜", units: ["捆"], tag: "蔬菜 不常見" },
+    { name: "芥藍菜", units: ["捆"], tag: "蔬菜 不常見" },
+    { name: "白杏菜", units: ["捆"], tag: "蔬菜 不常見" },
+    { name: "空心菜", units: ["捆"], tag: "蔬菜 不常見" },
+    { name: "秋葵", units: ["斤"], tag: "蔬菜 不常見" },
+    { name: "小豆苗", units: ["斤"], tag: "蔬菜 不常見" },
+    { name: "紅蘿蔔", units: ["條", "斤"], tag: "蔬菜 不常見" },
+    { name: "地瓜", units: ["顆", "斤"], tag: "蔬菜 不常見" },
+    { name: "苦瓜", units: ["條", "斤"], tag: "蔬菜 不常見" },
+    { name: "冬瓜", units: ["條", "斤"], tag: "蔬菜 不常見" },
+    { name: "馬鈴薯", units: ["顆", "斤"], tag: "蔬菜 不常見" },
+    { name: "孛齊", units: ["顆", "斤"], tag: "蔬菜 不常見" },
+    { name: "結頭菜", units: ["顆", "斤"], tag: "蔬菜 不常見" },
+    { name: "台灣山藥", units: ["條", "斤"], tag: "蔬菜 不常見" }
+];
+
+// 同時建議你也把預設標籤更新，這樣分類會更整齊
+let tags = JSON.parse(localStorage.getItem('v4_tags')) || ["蔬菜 常見", "蔬菜 不常見", "非蔬菜 常見", "非蔬菜 不常見"];
+    let products = JSON.parse(localStorage.getItem('v4_products')) || defaultProducts;
+
+    function save() {
+        localStorage.setItem('v4_tags', JSON.stringify(tags));
+        localStorage.setItem('v4_products', JSON.stringify(products));
+    }
+
+    function showPage(pageId) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+        render();
+    }
+
+    function render() {
+        const select = document.getElementById('add-tag-select');
+        if (select) select.innerHTML = tags.map(t => `<option value="${t}">${t}</option>`).join('') + '<option value="未分類">未分類</option>';
+
+        const manageList = document.getElementById('manage-list');
+        if (manageList) {
+            manageList.innerHTML = '';
+            [...tags, "未分類"].forEach(cat => {
+                const filtered = products.filter(p => p.tag === cat);
+                if (filtered.length > 0) {
+                    let html = `<div class="cat-group"><div class="cat-title">${cat}</div>`;
+                    filtered.forEach(p => {
+                        const idx = products.indexOf(p);
+                        html += `
+                            <div class="list-item">
+                                <span><strong>${p.name}</strong> <small style="color: #64748b;">(${p.units.join('/')})</small></span>
+                                <button onclick="deleteProduct(${idx})" style="background:none; border:none; color:var(--danger); font-weight:bold; cursor:pointer;">刪除</button>
+                            </div>`;
+                    });
+                    manageList.innerHTML += html + `</div>`;
+                }
+            });
+            
+            if (products.length === 0) {
+                manageList.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px;">目前沒有任何貨品</div>';
+            }
+        }
+
+        const tagList = document.getElementById('tag-manage-list');
+        if (tagList) tagList.innerHTML = tags.map((t, i) => `<div class="list-item"><span>${t}</span><button onclick="deleteTag(${i})" style="color:var(--danger); border:none; background:none;">✕</button></div>`).join('');
+
+        const orderContainer = document.getElementById('order-container');
+        if (orderContainer) {
+            orderContainer.innerHTML = '';
+            [...tags, "未分類"].forEach(cat => {
+                const filtered = products.filter(p => p.tag === cat);
+                if (filtered.length > 0) {
+                    let html = `<div class="cat-group"><div class="cat-title">${cat}</div>`;
+                    filtered.forEach(p => {
+                        const idx = products.indexOf(p);
+                        let unitUI = '';
+                        if (p.units.length > 1) {
+                            // 多單位：顯示下拉選單
+                            unitUI = `<select id="unit-${idx}">${p.units.map(u => `<option value="${u}">${u}</option>`).join('')}</select>`;
+                        } else {
+                            // 單單位：鎖定文字
+                            unitUI = `<span class="unit-text" id="unit-text-${idx}">${p.units[0]}</span><input type="hidden" id="unit-${idx}" value="${p.units[0]}">`;
+                        }
+
+                        html += `
+                            <div class="item-row">
+                                <input type="checkbox" id="check-${idx}">
+                                <strong>${p.name}</strong>
+                                <div style="display:flex; gap:8px; align-items:center;">
+                                    <input type="number" id="qty-${idx}" placeholder="0" inputmode="numeric">
+                                    ${unitUI}
+                                </div>
+                            </div>`;
+                    });
+                    orderContainer.innerHTML += html + `</div>`;
+                }
+            });
+        }
+    }
+
+    function handleAddProduct() {
+        const name = document.getElementById('add-name').value.trim();
+        const unitInput = document.getElementById('add-units').value.trim();
+        const tag = document.getElementById('add-tag-select').value;
+        
+        if (!name || !unitInput) return alert("名稱與單位皆為必填");
+        
+        // 處理單位字串，轉為陣列
+        const unitArr = unitInput.split(/[,，]/).map(u => u.trim()).filter(u => u !== "");
+        
+        products.push({ name, units: unitArr, tag });
+        document.getElementById('add-name').value = '';
+        document.getElementById('add-units').value = '';
+        save();
+        alert('貨品已新增！');
+    }
+
+    function deleteProduct(i) { if (confirm("確定刪除？")) { products.splice(i, 1); save(); render(); } }
+    function handleAddTag() {
+        const val = document.getElementById('new-tag-name').value.trim();
+        if (val && !tags.includes(val)) { tags.push(val); document.getElementById('new-tag-name').value = ''; save(); render(); }
+    }
+    function deleteTag(i) {
+        if (confirm("刪除標籤將使貨品歸類至未分類，確定？")) {
+            products.forEach(p => { if (p.tag === tags[i]) p.tag = "未分類"; });
+            tags.splice(i, 1); save(); render();
+        }
+    }
+
+    function generateOutput() {
+        let res = `【叫貨單 ${new Date().toLocaleDateString()}】\n`;
+        res += `--------------------------\n`;
+        let has = false;
+        const totalLineLength = 15; 
+
+        products.forEach((p, i) => {
+            const chk = document.getElementById(`check-${i}`).checked;
+            const qty = document.getElementById(`qty-${i}`).value;
+            const unit = document.getElementById(`unit-${i}`).value;
+
+            if (chk && qty > 0) {
+                const name = p.name;
+                const amount = qty + unit;
+                const dotsCount = Math.max(1, totalLineLength - name.length - amount.length);
+                const dots = ".".repeat(dotsCount * 2);
+                res += `${name} ${dots} ${amount}\n`;
+                has = true;
+            }
+        });
+
+        if (!has) return alert("請勾選並輸入數量");
+        res += `--------------------------`;
+        document.getElementById('outputDisplay').innerText = res;
+        navigator.clipboard.writeText(res);
+        alert("✅ 已複製對齊清單！");
+    }
+
+    function exportData() { navigator.clipboard.writeText(JSON.stringify({tags, products})); alert("設定已複製！"); }
+    function importData() { 
+        const s = prompt("貼上字串："); 
+        if (s) { try { const d = JSON.parse(s); tags = d.tags; products = d.products; save(); render(); } catch(e){alert("格式錯誤");} } 
+    }
+
+    render();
+</script>
+
+</body>
+</html>
