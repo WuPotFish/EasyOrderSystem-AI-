@@ -275,33 +275,32 @@ let tags = JSON.parse(localStorage.getItem('v4_tags')) || ["蔬菜 常見", "蔬
     }
 
     function generateOutput() {
-        let res = `【叫貨單 ${new Date().toLocaleDateString()}】\n`;
-        res += `--------------------------\n`;
-        let has = false;
-        const totalLineLength = 15; 
+    let res = `【叫貨單 ${new Date().toLocaleDateString()}】\n`;
+    let has = false;
 
-        products.forEach((p, i) => {
-            const chk = document.getElementById(`check-${i}`).checked;
-            const qty = document.getElementById(`qty-${i}`).value;
-            const unit = document.getElementById(`unit-${i}`).value;
+    products.forEach((p, i) => {
+        const chk = document.getElementById(`check-${i}`).checked;
+        const qty = document.getElementById(`qty-${i}`).value;
+        const unit = document.getElementById(`unit-${i}`).value;
 
-            if (chk && qty > 0) {
-                const name = p.name;
-                const amount = qty + unit;
-                const dotsCount = Math.max(1, totalLineLength - name.length - amount.length);
-                const dots = ".".repeat(dotsCount * 2);
-                res += `${name} ${dots} ${amount}\n`;
-                has = true;
-            }
-        });
+        // 防呆：必須有勾選且數量大於 0 才會出現在清單中
+        if (chk && qty > 0) {
+            // 這裡的 \n 確保了每一項貨品都會換到下一行
+            res += `${p.name} ${qty}${unit}\n`;
+            has = true;
+        }
+    });
 
-        if (!has) return alert("請勾選並輸入數量");
-        res += `--------------------------`;
-        document.getElementById('outputDisplay').innerText = res;
-        navigator.clipboard.writeText(res);
-        alert("✅ 已複製對齊清單！");
-    }
-
+    if (!has) return alert("請勾選並輸入數量（需大於 0）");
+    
+    
+    // 在網頁上顯示預覽
+    document.getElementById('outputDisplay').innerText = res;
+    
+    // 複製到剪貼簿
+    navigator.clipboard.writeText(res);
+    alert("✅ 簡潔清單已複製！");
+}
     function exportData() { navigator.clipboard.writeText(JSON.stringify({tags, products})); alert("設定已複製！"); }
     function importData() { 
         const s = prompt("貼上字串："); 
@@ -312,5 +311,4 @@ let tags = JSON.parse(localStorage.getItem('v4_tags')) || ["蔬菜 常見", "蔬
 </script>
 
 </body>
-
 </html>
